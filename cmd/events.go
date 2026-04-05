@@ -12,22 +12,25 @@ import (
 )
 
 var (
-	eventsSince        string
-	eventsUntil        string
-	eventsStartDate    string
-	eventsEndDate      string
-	eventsModel        string
-	eventsPage         int
-	eventsPageSize     int
-	eventsAll          bool
-	eventsBillingCycle bool
-	eventsAggregate    bool
+	eventsSince     string
+	eventsUntil     string
+	eventsStartDate string
+	eventsEndDate   string
+	eventsModel     string
+	eventsPage      int
+	eventsPageSize  int
+	eventsAll       bool
+	eventsAllTime   bool
+	eventsAggregate bool
 )
 
 var eventsCmd = &cobra.Command{
 	Use:   "events",
 	Short: "List usage events with filtering and pagination",
 	Long: `List usage events from the Cursor dashboard API.
+
+By default, events are scoped to the current billing cycle. Use --all-time
+to query across all billing periods, or --since/--until to set a custom range.
 
 Date filtering supports human-friendly formats:
   --since 7d          (7 days ago)
@@ -39,9 +42,7 @@ Raw millisecond timestamps are also supported for scripting:
   --start-date 1774846800000
   --end-date 1775451599999
 
-Use --billing-cycle to automatically scope to the current billing period.
-If both human-friendly and raw flags are provided, the raw flags take precedence.
---billing-cycle is overridden by --since/--start-date.
+If --since or --start-date is provided, it overrides the billing cycle default.
 
 Use --aggregate to show cost and token totals grouped by model.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -75,7 +76,7 @@ func buildEventsRequest() (api.EventsRequest, error) {
 
 	now := time.Now()
 
-	// Raw flags take precedence, then human-friendly, then billing cycle
+	// Raw flags take precedence, then human-friendly, then billing cycle default
 	if eventsStartDate != "" {
 		req.StartDate = eventsStartDate
 	} else if eventsSince != "" {
@@ -84,7 +85,7 @@ func buildEventsRequest() (api.EventsRequest, error) {
 			return req, fmt.Errorf("parsing --since: %w", err)
 		}
 		req.StartDate = ms
-	} else if eventsBillingCycle {
+	} else if !eventsAllTime {
 		ms, err := fetchBillingCycleStart()
 		if err != nil {
 			return req, fmt.Errorf("fetching billing cycle: %w", err)
@@ -171,7 +172,7 @@ func init() {
 	eventsCmd.Flags().IntVar(&eventsPage, "page", 1, "page number (1-based)")
 	eventsCmd.Flags().IntVar(&eventsPageSize, "page-size", 50, "events per page")
 	eventsCmd.Flags().BoolVar(&eventsAll, "all", false, "fetch all pages (may be slow)")
-	eventsCmd.Flags().BoolVar(&eventsBillingCycle, "billing-cycle", false, "scope to current billing period")
+	eventsCmd.Flags().BoolVar(&eventsAllTime, "all-time", false, "query across all billing periods instead of just the current one")
 	eventsCmd.Flags().BoolVar(&eventsAggregate, "aggregate", false, "show aggregated totals by model (implies --all)")
 	rootCmd.AddCommand(eventsCmd)
 }
