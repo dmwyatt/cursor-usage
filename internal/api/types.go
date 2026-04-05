@@ -54,13 +54,12 @@ type TeamUsage struct {
 	OnDemand TeamOnDemandUsage `json:"onDemand"`
 }
 
-// TeamOnDemandUsage tracks team-level on-demand spending.
-// Values are in cents, represented as strings in the API.
+// TeamOnDemandUsage tracks team-level on-demand spending (values in cents).
 type TeamOnDemandUsage struct {
-	Enabled   bool   `json:"enabled"`
-	Used      string `json:"used"`
-	Limit     string `json:"limit"`
-	Remaining string `json:"remaining"`
+	Enabled   bool    `json:"enabled"`
+	Used      float64 `json:"used"`
+	Limit     float64 `json:"limit"`
+	Remaining float64 `json:"remaining"`
 }
 
 // EventsRequest is the POST body for /api/dashboard/get-filtered-usage-events.

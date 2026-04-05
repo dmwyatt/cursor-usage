@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-const defaultBaseURL = "https://www.cursor.com"
+const defaultBaseURL = "https://cursor.com"
 
 // Client makes authenticated requests to the Cursor dashboard API.
 type Client struct {

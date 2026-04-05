@@ -31,9 +31,9 @@
   "teamUsage": {
     "onDemand": {
       "enabled": true,
-      "used": "15000",
-      "limit": "50000",
-      "remaining": "35000"
+      "used": 15000,
+      "limit": 50000,
+      "remaining": 35000
     }
   }
 }
