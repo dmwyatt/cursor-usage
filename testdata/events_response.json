@@ -1,0 +1,45 @@
+{
+  "totalUsageEventsCount": 30653,
+  "usageEventsDisplay": [
+    {
+      "timestamp": "1775418973898",
+      "model": "claude-4.6-opus-high-thinking",
+      "kind": "USAGE_EVENT_KIND_USAGE_BASED",
+      "requestsCosts": 30.4,
+      "usageBasedCosts": "$1.21",
+      "isTokenBasedCall": true,
+      "tokenUsage": {
+        "inputTokens": 3,
+        "outputTokens": 20525,
+        "cacheWriteTokens": 112151,
+        "totalCents": 121.41
+      },
+      "owningUser": "152683922",
+      "owningTeam": "2168997",
+      "cursorTokenFee": 3.32,
+      "isChargeable": true,
+      "isHeadless": false,
+      "chargedCents": 124.73
+    },
+    {
+      "timestamp": "1775418000000",
+      "model": "claude-4.6-sonnet-medium-thinking",
+      "kind": "USAGE_EVENT_KIND_INCLUDED_IN_BUSINESS",
+      "requestsCosts": 5.2,
+      "usageBasedCosts": "$0.00",
+      "isTokenBasedCall": true,
+      "tokenUsage": {
+        "inputTokens": 1500,
+        "outputTokens": 3000,
+        "cacheWriteTokens": 0,
+        "totalCents": 0
+      },
+      "owningUser": "152683922",
+      "owningTeam": "2168997",
+      "cursorTokenFee": 0,
+      "isChargeable": false,
+      "isHeadless": true,
+      "chargedCents": 0
+    }
+  ]
+}
