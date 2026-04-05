@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/dmwyatt/cursor-usage/internal/api"
@@ -11,14 +12,16 @@ import (
 )
 
 var (
-	eventsSince     string
-	eventsUntil     string
-	eventsStartDate string
-	eventsEndDate   string
-	eventsModel     string
-	eventsPage      int
-	eventsPageSize  int
-	eventsAll       bool
+	eventsSince        string
+	eventsUntil        string
+	eventsStartDate    string
+	eventsEndDate      string
+	eventsModel        string
+	eventsPage         int
+	eventsPageSize     int
+	eventsAll          bool
+	eventsBillingCycle bool
+	eventsAggregate    bool
 )
 
 var eventsCmd = &cobra.Command{
@@ -36,14 +39,18 @@ Raw millisecond timestamps are also supported for scripting:
   --start-date 1774846800000
   --end-date 1775451599999
 
-If both human-friendly and raw flags are provided, the raw flags take precedence.`,
+Use --billing-cycle to automatically scope to the current billing period.
+If both human-friendly and raw flags are provided, the raw flags take precedence.
+--billing-cycle is overridden by --since/--start-date.
+
+Use --aggregate to show cost and token totals grouped by model.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		req, err := buildEventsRequest()
 		if err != nil {
 			return err
 		}
 
-		if eventsAll {
+		if eventsAll || eventsAggregate {
 			return fetchAllEvents(cmd, req)
 		}
 
@@ -68,13 +75,19 @@ func buildEventsRequest() (api.EventsRequest, error) {
 
 	now := time.Now()
 
-	// Raw flags take precedence over human-friendly flags
+	// Raw flags take precedence, then human-friendly, then billing cycle
 	if eventsStartDate != "" {
 		req.StartDate = eventsStartDate
 	} else if eventsSince != "" {
 		ms, err := dateparse.ToMillis(eventsSince, now)
 		if err != nil {
 			return req, fmt.Errorf("parsing --since: %w", err)
+		}
+		req.StartDate = ms
+	} else if eventsBillingCycle {
+		ms, err := fetchBillingCycleStart()
+		if err != nil {
+			return req, fmt.Errorf("fetching billing cycle: %w", err)
 		}
 		req.StartDate = ms
 	}
@@ -90,6 +103,20 @@ func buildEventsRequest() (api.EventsRequest, error) {
 	}
 
 	return req, nil
+}
+
+func fetchBillingCycleStart() (string, error) {
+	summary, err := apiClient.GetUsageSummary()
+	if err != nil {
+		return "", err
+	}
+
+	t, err := time.Parse(time.RFC3339Nano, summary.BillingCycleStart)
+	if err != nil {
+		return "", fmt.Errorf("parsing billing cycle start %q: %w", summary.BillingCycleStart, err)
+	}
+
+	return strconv.FormatInt(t.UnixMilli(), 10), nil
 }
 
 func fetchAllEvents(cmd *cobra.Command, req api.EventsRequest) error {
@@ -120,6 +147,15 @@ func fetchAllEvents(cmd *cobra.Command, req api.EventsRequest) error {
 	}
 
 	w := cmd.OutOrStdout()
+
+	if eventsAggregate {
+		agg := output.Aggregate(combined)
+		if jsonOutput {
+			return output.RenderJSON(w, agg)
+		}
+		return output.RenderAggregate(w, agg)
+	}
+
 	if jsonOutput {
 		return output.RenderJSON(w, combined)
 	}
@@ -135,5 +171,7 @@ func init() {
 	eventsCmd.Flags().IntVar(&eventsPage, "page", 1, "page number (1-based)")
 	eventsCmd.Flags().IntVar(&eventsPageSize, "page-size", 50, "events per page")
 	eventsCmd.Flags().BoolVar(&eventsAll, "all", false, "fetch all pages (may be slow)")
+	eventsCmd.Flags().BoolVar(&eventsBillingCycle, "billing-cycle", false, "scope to current billing period")
+	eventsCmd.Flags().BoolVar(&eventsAggregate, "aggregate", false, "show aggregated totals by model (implies --all)")
 	rootCmd.AddCommand(eventsCmd)
 }
