@@ -81,13 +81,13 @@ Shows your plan type, billing period, request usage, and on-demand spending.
 
 ### Usage events
 
-Events default to the current billing cycle.
+Events default to the current billing cycle and automatically fetch all pages.
 
 ```bash
-# Current billing cycle, first page
+# Current billing cycle (all pages)
 cursor-usage events
 
-# Last 7 days
+# Last 7 days (first page only; add --all for everything)
 cursor-usage events --since 7d
 
 # Specific date range

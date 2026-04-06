@@ -46,12 +46,12 @@ If --since or --start-date is provided, it overrides the billing cycle default.
 
 Use --aggregate to show cost and token totals grouped by model.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		req, err := buildEventsRequest()
+		req, billingCycle, err := buildEventsRequest()
 		if err != nil {
 			return err
 		}
 
-		if eventsAll || eventsAggregate {
+		if eventsAll || eventsAggregate || billingCycle {
 			return fetchAllEvents(cmd, req)
 		}
 
@@ -68,11 +68,13 @@ Use --aggregate to show cost and token totals grouped by model.`,
 	},
 }
 
-func buildEventsRequest() (api.EventsRequest, error) {
+// buildEventsRequest returns the API request and whether billing cycle mode is active.
+func buildEventsRequest() (api.EventsRequest, bool, error) {
 	req := api.EventsRequest{
 		Page:     eventsPage,
 		PageSize: eventsPageSize,
 	}
+	billingCycle := false
 
 	now := time.Now()
 
@@ -82,15 +84,16 @@ func buildEventsRequest() (api.EventsRequest, error) {
 	} else if eventsSince != "" {
 		ms, err := dateparse.ToMillis(eventsSince, now)
 		if err != nil {
-			return req, fmt.Errorf("parsing --since: %w", err)
+			return req, false, fmt.Errorf("parsing --since: %w", err)
 		}
 		req.StartDate = ms
 	} else if !eventsAllTime {
 		ms, err := fetchBillingCycleStart()
 		if err != nil {
-			return req, fmt.Errorf("fetching billing cycle: %w", err)
+			return req, false, fmt.Errorf("fetching billing cycle: %w", err)
 		}
 		req.StartDate = ms
+		billingCycle = true
 	}
 
 	if eventsEndDate != "" {
@@ -98,12 +101,12 @@ func buildEventsRequest() (api.EventsRequest, error) {
 	} else if eventsUntil != "" {
 		ms, err := dateparse.EndOfDayMillis(eventsUntil, now)
 		if err != nil {
-			return req, fmt.Errorf("parsing --until: %w", err)
+			return req, false, fmt.Errorf("parsing --until: %w", err)
 		}
 		req.EndDate = ms
 	}
 
-	return req, nil
+	return req, billingCycle, nil
 }
 
 func fetchBillingCycleStart() (string, error) {
