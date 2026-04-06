@@ -106,12 +106,14 @@ cursor-usage events --all
 cursor-usage events --aggregate
 ```
 
-Fetches all events in the current billing cycle and groups by model:
+Fetches all events in the current billing cycle, groups by model, and
+calculates cost per active hour:
 
 ```
 Total events: 289 (usage-based: 37, included: 251, headless: 0)
 Total cost:   $105.32
 Total tokens: 1443067 input, 656744 output, 5770500 cache write
+Active time:  9.4h ($11.24/hr, sessions split by 30m+ gaps)
 
 ┌───────────────────────────────────┬────────┬────────┬───────────┬────────────┬─────────────────┬──────────┐
 │ MODEL                             │ EVENTS │ COST   │ INPUT TOK │ OUTPUT TOK │ CACHE WRITE TOK │ HEADLESS │
@@ -121,6 +123,14 @@ Total tokens: 1443067 input, 656744 output, 5770500 cache write
 │ claude-4.6-opus-high              │      6 │ $3.48  │        35 │       8474 │          149315 │        0 │
 │ ...                               │        │        │           │            │                 │          │
 └───────────────────────────────────┴────────┴────────┴───────────┴────────────┴─────────────────┴──────────┘
+```
+
+Active time is inferred from event timestamps: consecutive events less than
+30 minutes apart are grouped into the same session. Adjust the threshold with
+`--session-gap` (in minutes):
+
+```bash
+cursor-usage events --aggregate --session-gap 15
 ```
 
 ### JSON output
