@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/dmwyatt/cursor-usage/internal/api"
 )
@@ -49,7 +50,7 @@ func makeTestEvents() *api.EventsResponse {
 }
 
 func TestAggregateTotals(t *testing.T) {
-	agg := Aggregate(makeTestEvents())
+	agg := Aggregate(makeTestEvents(), 30*time.Minute)
 
 	if agg.TotalEvents != 4 {
 		t.Errorf("expected 4 total events, got %d", agg.TotalEvents)
@@ -69,7 +70,7 @@ func TestAggregateTotals(t *testing.T) {
 }
 
 func TestAggregateByModel(t *testing.T) {
-	agg := Aggregate(makeTestEvents())
+	agg := Aggregate(makeTestEvents(), 30*time.Minute)
 
 	if len(agg.ByModel) != 2 {
 		t.Fatalf("expected 2 models, got %d", len(agg.ByModel))
@@ -111,7 +112,7 @@ func TestAggregateByModel(t *testing.T) {
 }
 
 func TestAggregateByKind(t *testing.T) {
-	agg := Aggregate(makeTestEvents())
+	agg := Aggregate(makeTestEvents(), 30*time.Minute)
 
 	if agg.UsageBasedEvents != 3 {
 		t.Errorf("expected 3 usage-based events, got %d", agg.UsageBasedEvents)
@@ -128,7 +129,7 @@ func TestAggregateEmpty(t *testing.T) {
 	agg := Aggregate(&api.EventsResponse{
 		TotalUsageEventsCount: 0,
 		UsageEventsDisplay:    nil,
-	})
+	}, 30*time.Minute)
 
 	if agg.TotalEvents != 0 {
 		t.Errorf("expected 0 events, got %d", agg.TotalEvents)
@@ -139,7 +140,7 @@ func TestAggregateEmpty(t *testing.T) {
 }
 
 func TestRenderAggregate(t *testing.T) {
-	agg := Aggregate(makeTestEvents())
+	agg := Aggregate(makeTestEvents(), 30*time.Minute)
 
 	var buf bytes.Buffer
 	if err := RenderAggregate(&buf, agg); err != nil {

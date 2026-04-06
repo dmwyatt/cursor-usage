@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"time"
 
 	"github.com/dmwyatt/cursor-usage/internal/api"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -11,15 +12,18 @@ import (
 
 // AggregateResult holds computed totals for a set of usage events.
 type AggregateResult struct {
-	TotalEvents          int              `json:"totalEvents"`
-	TotalChargedCents    float64          `json:"totalChargedCents"`
-	TotalInputTokens     int              `json:"totalInputTokens"`
-	TotalOutputTokens    int              `json:"totalOutputTokens"`
-	TotalCacheWriteTokens int             `json:"totalCacheWriteTokens"`
-	UsageBasedEvents     int              `json:"usageBasedEvents"`
-	IncludedEvents       int              `json:"includedEvents"`
-	HeadlessEvents       int              `json:"headlessEvents"`
-	ByModel              []ModelAggregate `json:"byModel"`
+	TotalEvents           int              `json:"totalEvents"`
+	TotalChargedCents     float64          `json:"totalChargedCents"`
+	TotalInputTokens      int              `json:"totalInputTokens"`
+	TotalOutputTokens     int              `json:"totalOutputTokens"`
+	TotalCacheWriteTokens int              `json:"totalCacheWriteTokens"`
+	UsageBasedEvents      int              `json:"usageBasedEvents"`
+	IncludedEvents        int              `json:"includedEvents"`
+	HeadlessEvents        int              `json:"headlessEvents"`
+	ActiveHours           float64          `json:"activeHours"`
+	CostPerActiveHour     float64          `json:"costPerActiveHour"`
+	SessionGapMinutes     int              `json:"sessionGapMinutes"`
+	ByModel               []ModelAggregate `json:"byModel"`
 }
 
 // ModelAggregate holds computed totals for a single model.
@@ -34,9 +38,10 @@ type ModelAggregate struct {
 }
 
 // Aggregate computes totals from a set of usage events.
-func Aggregate(resp *api.EventsResponse) *AggregateResult {
+func Aggregate(resp *api.EventsResponse, sessionGap time.Duration) *AggregateResult {
 	result := &AggregateResult{}
 	models := map[string]*ModelAggregate{}
+	timestamps := make([]string, 0, len(resp.UsageEventsDisplay))
 
 	for _, e := range resp.UsageEventsDisplay {
 		result.TotalEvents++
@@ -44,6 +49,7 @@ func Aggregate(resp *api.EventsResponse) *AggregateResult {
 		result.TotalInputTokens += e.TokenUsage.InputTokens
 		result.TotalOutputTokens += e.TokenUsage.OutputTokens
 		result.TotalCacheWriteTokens += e.TokenUsage.CacheWriteTokens
+		timestamps = append(timestamps, e.Timestamp)
 
 		switch e.Kind {
 		case "USAGE_EVENT_KIND_USAGE_BASED":
@@ -78,6 +84,12 @@ func Aggregate(resp *api.EventsResponse) *AggregateResult {
 		return result.ByModel[i].ChargedCents > result.ByModel[j].ChargedCents
 	})
 
+	result.SessionGapMinutes = int(sessionGap.Minutes())
+	result.ActiveHours = ActiveHours(timestamps, sessionGap)
+	if result.ActiveHours > 0 {
+		result.CostPerActiveHour = (result.TotalChargedCents / 100) / result.ActiveHours
+	}
+
 	return result
 }
 
@@ -86,8 +98,14 @@ func RenderAggregate(w io.Writer, agg *AggregateResult) error {
 	fmt.Fprintf(w, "Total events: %d (usage-based: %d, included: %d, headless: %d)\n",
 		agg.TotalEvents, agg.UsageBasedEvents, agg.IncludedEvents, agg.HeadlessEvents)
 	fmt.Fprintf(w, "Total cost:   $%.2f\n", agg.TotalChargedCents/100)
-	fmt.Fprintf(w, "Total tokens: %d input, %d output, %d cache write\n\n",
+	fmt.Fprintf(w, "Total tokens: %d input, %d output, %d cache write\n",
 		agg.TotalInputTokens, agg.TotalOutputTokens, agg.TotalCacheWriteTokens)
+
+	if agg.ActiveHours > 0 {
+		fmt.Fprintf(w, "Active time:  %.1fh ($%.2f/hr, sessions split by %dm+ gaps)\n",
+			agg.ActiveHours, agg.CostPerActiveHour, agg.SessionGapMinutes)
+	}
+	fmt.Fprintln(w)
 
 	t := table.NewWriter()
 	t.SetOutputMirror(w)

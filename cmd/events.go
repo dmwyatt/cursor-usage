@@ -19,9 +19,10 @@ var (
 	eventsModel     string
 	eventsPage      int
 	eventsPageSize  int
-	eventsAll       bool
-	eventsAllTime   bool
-	eventsAggregate bool
+	eventsAll        bool
+	eventsAllTime    bool
+	eventsAggregate  bool
+	eventsSessionGap int
 )
 
 var eventsCmd = &cobra.Command{
@@ -153,7 +154,7 @@ func fetchAllEvents(cmd *cobra.Command, req api.EventsRequest) error {
 	w := cmd.OutOrStdout()
 
 	if eventsAggregate {
-		agg := output.Aggregate(combined)
+		agg := output.Aggregate(combined, time.Duration(eventsSessionGap)*time.Minute)
 		if jsonOutput {
 			return output.RenderJSON(w, agg)
 		}
@@ -177,5 +178,6 @@ func init() {
 	eventsCmd.Flags().BoolVar(&eventsAll, "all", false, "fetch all pages (may be slow)")
 	eventsCmd.Flags().BoolVar(&eventsAllTime, "all-time", false, "query across all billing periods instead of just the current one")
 	eventsCmd.Flags().BoolVar(&eventsAggregate, "aggregate", false, "show aggregated totals by model (implies --all)")
+	eventsCmd.Flags().IntVar(&eventsSessionGap, "session-gap", 30, "minutes of inactivity before a new session starts (for cost/hr calculation)")
 	rootCmd.AddCommand(eventsCmd)
 }
