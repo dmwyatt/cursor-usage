@@ -76,6 +76,28 @@ func TestClientDoesNotSetOriginOnGET(t *testing.T) {
 	}
 }
 
+func TestClientSetsUserAgent(t *testing.T) {
+	var gotUA string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUA = r.Header.Get("User-Agent")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("{}"))
+	}))
+	defer srv.Close()
+
+	client := NewClient("tok", WithBaseURL(srv.URL))
+	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/test", nil)
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	resp.Body.Close()
+
+	if gotUA != userAgent {
+		t.Errorf("expected User-Agent %q, got %q", userAgent, gotUA)
+	}
+}
+
 func TestClient401ReturnsAPIError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)

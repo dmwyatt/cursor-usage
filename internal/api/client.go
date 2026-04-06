@@ -6,7 +6,10 @@ import (
 	"net/http"
 )
 
-const defaultBaseURL = "https://cursor.com"
+const (
+	defaultBaseURL = "https://cursor.com"
+	userAgent      = "cursor-usage-cli (https://github.com/dmwyatt/cursor-usage)"
+)
 
 // Client makes authenticated requests to the Cursor dashboard API.
 type Client struct {
@@ -53,6 +56,7 @@ func (c *Client) BaseURL() string {
 // Do executes an HTTP request with the session cookie attached.
 // For POST/PUT/PATCH requests, it also sets the Origin header (CSRF protection).
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
+	req.Header.Set("User-Agent", userAgent)
 	req.AddCookie(&http.Cookie{
 		Name:  "WorkosCursorSessionToken",
 		Value: c.sessionToken,
