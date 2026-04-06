@@ -190,15 +190,14 @@ func TestRenderSessions(t *testing.T) {
 
 	out := buf.String()
 	checks := []string{
-		"Session 1",
-		"Session 2",
 		"claude-4.6-opus",
 		"claude-4.6-sonnet",
 		"18m",
 		"5m",
 		"$1.10",
 		"$0.27",
-		"Total:",
+		"TOTAL",
+		"2 SESSIONS",
 	}
 	for _, check := range checks {
 		if !strings.Contains(out, check) {

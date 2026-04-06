@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dmwyatt/cursor-usage/internal/api"
+	"github.com/jedib0t/go-pretty/v6/table"
 )
 
 // Session represents a group of events that occurred close together in time.
@@ -140,43 +141,65 @@ func parseMsTimestamps(timestamps []string) []time.Time {
 	return times
 }
 
-// RenderSessions writes a human-readable session listing to w.
+// RenderSessions writes a human-readable session table to w.
 func RenderSessions(w io.Writer, sessions []Session) error {
+	t := table.NewWriter()
+	t.SetOutputMirror(w)
+	t.SetStyle(table.StyleLight)
+
+	t.AppendHeader(table.Row{"Session", "Duration", "Events", "Cost"})
+
 	var totalCents float64
+	var totalEvents int
 	var totalDuration time.Duration
 
 	for i, s := range sessions {
 		totalCents += s.TotalChargedCents
+		totalEvents += len(s.Events)
 		totalDuration += s.Duration
 
-		fmt.Fprintf(w, "Session %d: %s - %s (%s, $%.2f)\n",
-			i+1,
+		if i > 0 {
+			t.AppendSeparator()
+		}
+
+		sessionLabel := fmt.Sprintf("%s - %s",
 			s.Start.Local().Format("2006-01-02 15:04"),
 			s.End.Local().Format("15:04"),
-			formatDuration(s.Duration),
-			s.TotalChargedCents/100,
 		)
+		t.AppendRow(table.Row{
+			sessionLabel,
+			formatDuration(s.Duration),
+			len(s.Events),
+			fmt.Sprintf("$%.2f", s.TotalChargedCents/100),
+		})
 
 		for _, m := range s.ByModel {
-			fmt.Fprintf(w, "  %-40s %d events  $%.2f\n",
-				m.Model, m.Events, m.ChargedCents/100)
+			t.AppendRow(table.Row{
+				"  " + m.Model,
+				"",
+				m.Events,
+				fmt.Sprintf("$%.2f", m.ChargedCents/100),
+			})
 		}
-		fmt.Fprintln(w)
 	}
+
+	t.AppendSeparator()
 
 	totalHours := totalDuration.Hours()
-	costPerHr := 0.0
+	footerLabel := fmt.Sprintf("Total (%d sessions)", len(sessions))
 	if totalHours > 0 {
-		costPerHr = (totalCents / 100) / totalHours
+		footerLabel = fmt.Sprintf("Total (%d sessions, $%.2f/hr)",
+			len(sessions), (totalCents/100)/totalHours)
 	}
 
-	fmt.Fprintf(w, "Total: %d sessions, %s active, $%.2f",
-		len(sessions), formatDuration(totalDuration), totalCents/100)
-	if totalHours > 0 {
-		fmt.Fprintf(w, " ($%.2f/hr)", costPerHr)
-	}
-	fmt.Fprintln(w)
+	t.AppendFooter(table.Row{
+		footerLabel,
+		formatDuration(totalDuration),
+		totalEvents,
+		fmt.Sprintf("$%.2f", totalCents/100),
+	})
 
+	t.Render()
 	return nil
 }
 
