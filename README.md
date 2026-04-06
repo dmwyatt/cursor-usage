@@ -133,6 +133,35 @@ Active time is inferred from event timestamps: consecutive events less than
 cursor-usage events --aggregate --session-gap 15
 ```
 
+### Session view
+
+```bash
+cursor-usage events --sessions
+```
+
+Groups events into coding sessions and shows each session's time range,
+duration, cost, and per-model breakdown:
+
+```
+Session 1: 2026-04-02 17:12 - 18:08 (56m, $15.40)
+  claude-4.6-opus-high-thinking            24 events  $13.03
+  claude-4.5-haiku                         17 events  $2.35
+  default                                  1 events  $0.02
+
+Session 2: 2026-04-03 15:20 - 15:53 (32m, $8.93)
+  claude-4.6-opus-high-thinking            21 events  $8.82
+  composer-2-fast                          1 events  $0.11
+
+Total: 14 sessions, 9h22m active, $105.32 ($11.24/hr)
+```
+
+Combine with `--aggregate` to append the model summary table after the session
+listing:
+
+```bash
+cursor-usage events --sessions --aggregate
+```
+
 ### JSON output
 
 Any command supports `--json` for machine-readable output:

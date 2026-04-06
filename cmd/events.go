@@ -22,6 +22,7 @@ var (
 	eventsAll        bool
 	eventsAllTime    bool
 	eventsAggregate  bool
+	eventsSessions   bool
 	eventsSessionGap int
 )
 
@@ -45,14 +46,16 @@ Raw millisecond timestamps are also supported for scripting:
 
 If --since or --start-date is provided, it overrides the billing cycle default.
 
-Use --aggregate to show cost and token totals grouped by model.`,
+Use --aggregate to show cost and token totals grouped by model.
+Use --sessions to view events grouped into coding sessions.
+Combine --sessions --aggregate for both views.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		req, billingCycle, err := buildEventsRequest()
 		if err != nil {
 			return err
 		}
 
-		if eventsAll || eventsAggregate || billingCycle {
+		if eventsAll || eventsAggregate || eventsSessions || billingCycle {
 			return fetchAllEvents(cmd, req)
 		}
 
@@ -152,9 +155,26 @@ func fetchAllEvents(cmd *cobra.Command, req api.EventsRequest) error {
 	}
 
 	w := cmd.OutOrStdout()
+	gap := time.Duration(eventsSessionGap) * time.Minute
+
+	if eventsSessions {
+		sessions := output.GroupSessions(combined.UsageEventsDisplay, gap)
+		if jsonOutput {
+			return output.RenderJSON(w, sessions)
+		}
+		if err := output.RenderSessions(w, sessions); err != nil {
+			return err
+		}
+		if eventsAggregate {
+			fmt.Fprintln(w)
+			agg := output.Aggregate(combined, gap)
+			return output.RenderAggregate(w, agg)
+		}
+		return nil
+	}
 
 	if eventsAggregate {
-		agg := output.Aggregate(combined, time.Duration(eventsSessionGap)*time.Minute)
+		agg := output.Aggregate(combined, gap)
 		if jsonOutput {
 			return output.RenderJSON(w, agg)
 		}
@@ -178,6 +198,7 @@ func init() {
 	eventsCmd.Flags().BoolVar(&eventsAll, "all", false, "fetch all pages (may be slow)")
 	eventsCmd.Flags().BoolVar(&eventsAllTime, "all-time", false, "query across all billing periods instead of just the current one")
 	eventsCmd.Flags().BoolVar(&eventsAggregate, "aggregate", false, "show aggregated totals by model (implies --all)")
-	eventsCmd.Flags().IntVar(&eventsSessionGap, "session-gap", 30, "minutes of inactivity before a new session starts (for cost/hr calculation)")
+	eventsCmd.Flags().BoolVar(&eventsSessions, "sessions", false, "group events into coding sessions with per-session costs (implies --all)")
+	eventsCmd.Flags().IntVar(&eventsSessionGap, "session-gap", 30, "minutes of inactivity before a new session starts")
 	rootCmd.AddCommand(eventsCmd)
 }
