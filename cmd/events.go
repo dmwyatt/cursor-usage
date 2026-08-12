@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/dmwyatt/cursor-usage/internal/api"
@@ -118,40 +117,13 @@ func fetchBillingCycleStart() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	t, err := time.Parse(time.RFC3339Nano, summary.BillingCycleStart)
-	if err != nil {
-		return "", fmt.Errorf("parsing billing cycle start %q: %w", summary.BillingCycleStart, err)
-	}
-
-	return strconv.FormatInt(t.UnixMilli(), 10), nil
+	return billingCycleStartMillis(summary.BillingCycleStart)
 }
 
 func fetchAllEvents(cmd *cobra.Command, req api.EventsRequest) error {
-	var allEvents []api.UsageEvent
-	var totalCount int
-	req.Page = 1
-
-	for {
-		resp, err := apiClient.GetFilteredUsageEvents(req)
-		if err != nil {
-			return err
-		}
-
-		totalCount = resp.TotalUsageEventsCount
-		allEvents = append(allEvents, resp.UsageEventsDisplay...)
-
-		if len(allEvents) >= totalCount || len(resp.UsageEventsDisplay) == 0 {
-			break
-		}
-
-		req.Page++
-		time.Sleep(200 * time.Millisecond)
-	}
-
-	combined := &api.EventsResponse{
-		TotalUsageEventsCount: totalCount,
-		UsageEventsDisplay:    allEvents,
+	combined, err := apiClient.GetAllFilteredUsageEvents(req)
+	if err != nil {
+		return err
 	}
 
 	w := cmd.OutOrStdout()

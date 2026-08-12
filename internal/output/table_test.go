@@ -33,7 +33,7 @@ func TestRenderSummary(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := RenderSummary(&buf, summary); err != nil {
+	if err := RenderSummary(&buf, summary, nil); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -48,6 +48,26 @@ func TestRenderSummary(t *testing.T) {
 	for _, check := range checks {
 		if !strings.Contains(output, check) {
 			t.Errorf("expected output to contain %q, got:\n%s", check, output)
+		}
+	}
+}
+
+func TestRenderSummaryTokens(t *testing.T) {
+	summary := &api.UsageSummary{
+		BillingCycleStart: "2026-08-06T02:46:21.000Z",
+		BillingCycleEnd:   "2026-09-06T02:46:21.000Z",
+		MembershipType:    "pro",
+	}
+	tokens := &TokenTotals{Input: 7_200_000, Output: 771_000, CacheRead: 140_000_000, CacheWrite: 209_300, Total: 148_180_300}
+
+	var buf bytes.Buffer
+	if err := RenderSummary(&buf, summary, tokens); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got := buf.String()
+	for _, check := range []string{"Total Tokens", "148.2M", "7.2M", "771.0K", "140.0M", "cache read"} {
+		if !strings.Contains(got, check) {
+			t.Errorf("expected output to contain %q, got:\n%s", check, got)
 		}
 	}
 }
@@ -75,7 +95,7 @@ func TestRenderSummaryUsesPercentWhenUsedIsCapped(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := RenderSummary(&buf, summary); err != nil {
+	if err := RenderSummary(&buf, summary, nil); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 

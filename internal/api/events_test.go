@@ -56,6 +56,9 @@ func TestGetFilteredUsageEvents(t *testing.T) {
 	if first.TokenUsage.OutputTokens != 20525 {
 		t.Errorf("expected 20525 output tokens, got %d", first.TokenUsage.OutputTokens)
 	}
+	if first.TokenUsage.CacheReadTokens != 1500000 {
+		t.Errorf("expected 1500000 cache read tokens, got %d", first.TokenUsage.CacheReadTokens)
+	}
 	if first.IsHeadless {
 		t.Error("expected first event to not be headless")
 	}
@@ -122,5 +125,34 @@ func TestGetFilteredUsageEventsAuthError(t *testing.T) {
 	}
 	if apiErr.StatusCode != 401 {
 		t.Errorf("expected 401, got %d", apiErr.StatusCode)
+	}
+}
+
+func TestGetAllFilteredUsageEvents(t *testing.T) {
+	pages := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req EventsRequest
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &req)
+		pages++
+		w.Header().Set("Content-Type", "application/json")
+		if req.Page <= 1 {
+			w.Write([]byte(`{"totalUsageEventsCount":3,"usageEventsDisplay":[{"model":"a"},{"model":"b"}]}`))
+			return
+		}
+		w.Write([]byte(`{"totalUsageEventsCount":3,"usageEventsDisplay":[{"model":"c"}]}`))
+	}))
+	defer srv.Close()
+
+	client := NewClient("tok", WithBaseURL(srv.URL))
+	resp, err := client.GetAllFilteredUsageEvents(EventsRequest{PageSize: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.UsageEventsDisplay) != 3 {
+		t.Fatalf("got %d events, want 3", len(resp.UsageEventsDisplay))
+	}
+	if pages != 2 {
+		t.Errorf("expected 2 pages, got %d", pages)
 	}
 }

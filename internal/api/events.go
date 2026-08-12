@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 )
+
+const defaultEventsPageSize = 200
 
 // GetFilteredUsageEvents fetches paginated, filterable usage events.
 func (c *Client) GetFilteredUsageEvents(req EventsRequest) (*EventsResponse, error) {
@@ -40,4 +43,33 @@ func (c *Client) GetFilteredUsageEvents(req EventsRequest) (*EventsResponse, err
 	}
 
 	return &eventsResp, nil
+}
+
+// GetAllFilteredUsageEvents fetches every page of usage events for req.
+func (c *Client) GetAllFilteredUsageEvents(req EventsRequest) (*EventsResponse, error) {
+	if req.PageSize == 0 {
+		req.PageSize = defaultEventsPageSize
+	}
+	req.Page = 1
+
+	var all []UsageEvent
+	var total int
+	for {
+		resp, err := c.GetFilteredUsageEvents(req)
+		if err != nil {
+			return nil, err
+		}
+		total = resp.TotalUsageEventsCount
+		all = append(all, resp.UsageEventsDisplay...)
+		if len(all) >= total || len(resp.UsageEventsDisplay) == 0 {
+			break
+		}
+		req.Page++
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	return &EventsResponse{
+		TotalUsageEventsCount: total,
+		UsageEventsDisplay:    all,
+	}, nil
 }

@@ -98,10 +98,11 @@ type UsageEvent struct {
 
 // TokenUsage contains the token breakdown for a single usage event.
 type TokenUsage struct {
-	InputTokens     int     `json:"inputTokens"`
-	OutputTokens    int     `json:"outputTokens"`
-	CacheWriteTokens int    `json:"cacheWriteTokens"`
-	TotalCents      float64 `json:"totalCents"`
+	InputTokens      int     `json:"inputTokens"`
+	OutputTokens     int     `json:"outputTokens"`
+	CacheReadTokens  int     `json:"cacheReadTokens"`
+	CacheWriteTokens int     `json:"cacheWriteTokens"`
+	TotalCents       float64 `json:"totalCents"`
 }
 
 // APIError represents an error response from the Cursor API.

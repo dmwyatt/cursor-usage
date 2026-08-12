@@ -14,7 +14,7 @@ import (
 )
 
 // RenderSummary writes a human-readable usage summary table to w.
-func RenderSummary(w io.Writer, s *api.UsageSummary) error {
+func RenderSummary(w io.Writer, s *api.UsageSummary, tokens *TokenTotals) error {
 	t := table.NewWriter()
 	t.SetOutputMirror(w)
 	t.SetStyle(table.StyleLight)
@@ -25,6 +25,9 @@ func RenderSummary(w io.Writer, s *api.UsageSummary) error {
 	t.AppendRow(table.Row{"Membership", s.MembershipType})
 	t.AppendRow(table.Row{"Billing Start", formatTimestamp(s.BillingCycleStart)})
 	t.AppendRow(table.Row{"Billing End", formatTimestamp(s.BillingCycleEnd)})
+	if tokens != nil {
+		t.AppendRow(table.Row{"Total Tokens", formatTokenTotals(*tokens)})
+	}
 	t.AppendSeparator()
 
 	plan := s.IndividualUsage.Plan
@@ -109,7 +112,7 @@ func RenderRecentEvents(w io.Writer, events []api.UsageEvent) error {
 
 func eventTableHeader() table.Row {
 	return table.Row{
-		"Time", "Model", "Kind", "Input Tok", "Output Tok", "Cost (cents)", "Headless",
+		"Time", "Model", "Kind", "Input Tok", "Output Tok", "Cache Read", "Cost (cents)", "Headless",
 	}
 }
 
@@ -120,6 +123,7 @@ func eventRow(e api.UsageEvent) table.Row {
 		shortKind(e.Kind),
 		e.TokenUsage.InputTokens,
 		e.TokenUsage.OutputTokens,
+		e.TokenUsage.CacheReadTokens,
 		fmt.Sprintf("%.2f", e.ChargedCents),
 		boolStr(e.IsHeadless),
 	}

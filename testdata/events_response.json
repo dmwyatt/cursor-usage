@@ -11,6 +11,7 @@
       "tokenUsage": {
         "inputTokens": 3,
         "outputTokens": 20525,
+        "cacheReadTokens": 1500000,
         "cacheWriteTokens": 112151,
         "totalCents": 121.41
       },

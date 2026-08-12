@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/dmwyatt/cursor-usage/internal/api"
 	"github.com/dmwyatt/cursor-usage/internal/memstat"
@@ -20,12 +22,22 @@ var summaryCmd = &cobra.Command{
 			return err
 		}
 
-		eventsResp, err := apiClient.GetFilteredUsageEvents(api.EventsRequest{
-			Page:     1,
-			PageSize: recentEventCount,
+		startMs, err := billingCycleStartMillis(summary.BillingCycleStart)
+		if err != nil {
+			return err
+		}
+		eventsResp, err := apiClient.GetAllFilteredUsageEvents(api.EventsRequest{
+			StartDate: startMs,
+			PageSize:  200,
 		})
 		if err != nil {
 			return err
+		}
+
+		tokens := output.SumTokens(eventsResp.UsageEventsDisplay)
+		recent := eventsResp.UsageEventsDisplay
+		if len(recent) > recentEventCount {
+			recent = recent[:recentEventCount]
 		}
 
 		mem, _ := memstat.Read()
@@ -34,12 +46,13 @@ var summaryCmd = &cobra.Command{
 		if jsonOutput {
 			return output.RenderJSON(w, struct {
 				*api.UsageSummary
-				RecentEvents []api.UsageEvent `json:"recentEvents"`
-				Memory       *memstat.Stats   `json:"memory,omitempty"`
-			}{summary, eventsResp.UsageEventsDisplay, mem})
+				TokenTotals  output.TokenTotals `json:"tokenTotals"`
+				RecentEvents []api.UsageEvent   `json:"recentEvents"`
+				Memory       *memstat.Stats     `json:"memory,omitempty"`
+			}{summary, tokens, recent, mem})
 		}
 
-		if err := output.RenderSummary(w, summary); err != nil {
+		if err := output.RenderSummary(w, summary, &tokens); err != nil {
 			return err
 		}
 		if mem != nil {
@@ -48,12 +61,20 @@ var summaryCmd = &cobra.Command{
 				return err
 			}
 		}
-		if len(eventsResp.UsageEventsDisplay) == 0 {
+		if len(recent) == 0 {
 			return nil
 		}
 		fmt.Fprintln(w)
-		return output.RenderRecentEvents(w, eventsResp.UsageEventsDisplay)
+		return output.RenderRecentEvents(w, recent)
 	},
+}
+
+func billingCycleStartMillis(start string) (string, error) {
+	t, err := time.Parse(time.RFC3339Nano, start)
+	if err != nil {
+		return "", fmt.Errorf("parsing billing cycle start %q: %w", start, err)
+	}
+	return strconv.FormatInt(t.UnixMilli(), 10), nil
 }
 
 func init() {

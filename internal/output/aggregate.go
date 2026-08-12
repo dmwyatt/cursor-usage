@@ -16,6 +16,7 @@ type AggregateResult struct {
 	TotalChargedCents     float64          `json:"totalChargedCents"`
 	TotalInputTokens      int              `json:"totalInputTokens"`
 	TotalOutputTokens     int              `json:"totalOutputTokens"`
+	TotalCacheReadTokens  int              `json:"totalCacheReadTokens"`
 	TotalCacheWriteTokens int              `json:"totalCacheWriteTokens"`
 	UsageBasedEvents      int              `json:"usageBasedEvents"`
 	IncludedEvents        int              `json:"includedEvents"`
@@ -33,6 +34,7 @@ type ModelAggregate struct {
 	ChargedCents     float64 `json:"chargedCents"`
 	InputTokens      int     `json:"inputTokens"`
 	OutputTokens     int     `json:"outputTokens"`
+	CacheReadTokens  int     `json:"cacheReadTokens"`
 	CacheWriteTokens int     `json:"cacheWriteTokens"`
 	HeadlessEvents   int     `json:"headlessEvents"`
 }
@@ -48,6 +50,7 @@ func Aggregate(resp *api.EventsResponse, sessionGap time.Duration) *AggregateRes
 		result.TotalChargedCents += e.ChargedCents
 		result.TotalInputTokens += e.TokenUsage.InputTokens
 		result.TotalOutputTokens += e.TokenUsage.OutputTokens
+		result.TotalCacheReadTokens += e.TokenUsage.CacheReadTokens
 		result.TotalCacheWriteTokens += e.TokenUsage.CacheWriteTokens
 		timestamps = append(timestamps, e.Timestamp)
 
@@ -71,6 +74,7 @@ func Aggregate(resp *api.EventsResponse, sessionGap time.Duration) *AggregateRes
 		m.ChargedCents += e.ChargedCents
 		m.InputTokens += e.TokenUsage.InputTokens
 		m.OutputTokens += e.TokenUsage.OutputTokens
+		m.CacheReadTokens += e.TokenUsage.CacheReadTokens
 		m.CacheWriteTokens += e.TokenUsage.CacheWriteTokens
 		if e.IsHeadless {
 			m.HeadlessEvents++
@@ -98,8 +102,8 @@ func RenderAggregate(w io.Writer, agg *AggregateResult) error {
 	fmt.Fprintf(w, "Total events: %d (usage-based: %d, included: %d, headless: %d)\n",
 		agg.TotalEvents, agg.UsageBasedEvents, agg.IncludedEvents, agg.HeadlessEvents)
 	fmt.Fprintf(w, "Total cost:   $%.2f\n", agg.TotalChargedCents/100)
-	fmt.Fprintf(w, "Total tokens: %d input, %d output, %d cache write\n",
-		agg.TotalInputTokens, agg.TotalOutputTokens, agg.TotalCacheWriteTokens)
+	fmt.Fprintf(w, "Total tokens: %d input, %d output, %d cache read, %d cache write\n",
+		agg.TotalInputTokens, agg.TotalOutputTokens, agg.TotalCacheReadTokens, agg.TotalCacheWriteTokens)
 
 	if agg.ActiveHours > 0 {
 		fmt.Fprintf(w, "Active time:  %.1fh ($%.2f/hr, sessions split by %dm+ gaps)\n",

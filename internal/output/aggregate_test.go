@@ -80,6 +80,9 @@ func TestAggregateTotals(t *testing.T) {
 	if agg.TotalCacheWriteTokens != 1700 {
 		t.Errorf("expected 1700 total cache write tokens, got %d", agg.TotalCacheWriteTokens)
 	}
+	if agg.TotalCacheReadTokens != 0 {
+		t.Errorf("expected 0 cache read tokens, got %d", agg.TotalCacheReadTokens)
+	}
 }
 
 func TestAggregateActiveHours(t *testing.T) {
