@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/dmwyatt/cursor-usage/internal/api"
+	"github.com/dmwyatt/cursor-usage/internal/memstat"
 )
 
 func TestRenderSummary(t *testing.T) {
@@ -192,5 +193,43 @@ func TestRenderRecentEvents(t *testing.T) {
 	}
 	if strings.Contains(output, "USAGE_EVENT_KIND_INCLUDED_IN_PRO") {
 		t.Errorf("expected short kind, got:\n%s", output)
+	}
+}
+
+func TestRenderMemory(t *testing.T) {
+	stats := &memstat.Stats{
+		Physical:   8589934592,
+		Used:       7288659968,
+		App:        2348810240,
+		Wired:      1962934272,
+		Compressed: 2976915456,
+		Cached:     1254006784,
+		SwapUsed:   743545242,
+		Pressure:   "green",
+	}
+
+	var buf bytes.Buffer
+	if err := RenderMemory(&buf, stats); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	checks := []string{
+		"Physical Memory",
+		"8.00 GB",
+		"Memory Used",
+		"app",
+		"wired",
+		"compressed",
+		"Cached Files",
+		"Swap Used",
+		"709.1 MB",
+		"Memory Pressure",
+		"green",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("expected output to contain %q, got:\n%s", check, output)
+		}
 	}
 }

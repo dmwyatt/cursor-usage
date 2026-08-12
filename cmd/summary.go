@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/dmwyatt/cursor-usage/internal/api"
+	"github.com/dmwyatt/cursor-usage/internal/memstat"
 	"github.com/dmwyatt/cursor-usage/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -27,16 +28,25 @@ var summaryCmd = &cobra.Command{
 			return err
 		}
 
+		mem, _ := memstat.Read()
+
 		w := cmd.OutOrStdout()
 		if jsonOutput {
 			return output.RenderJSON(w, struct {
 				*api.UsageSummary
 				RecentEvents []api.UsageEvent `json:"recentEvents"`
-			}{summary, eventsResp.UsageEventsDisplay})
+				Memory       *memstat.Stats   `json:"memory,omitempty"`
+			}{summary, eventsResp.UsageEventsDisplay, mem})
 		}
 
 		if err := output.RenderSummary(w, summary); err != nil {
 			return err
+		}
+		if mem != nil {
+			fmt.Fprintln(w)
+			if err := output.RenderMemory(w, mem); err != nil {
+				return err
+			}
 		}
 		if len(eventsResp.UsageEventsDisplay) == 0 {
 			return nil

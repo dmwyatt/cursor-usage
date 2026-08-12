@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/dmwyatt/cursor-usage/internal/api"
+	"github.com/dmwyatt/cursor-usage/internal/memstat"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
 )
 
 // RenderSummary writes a human-readable usage summary table to w.
@@ -44,6 +46,31 @@ func RenderSummary(w io.Writer, s *api.UsageSummary) error {
 	} else {
 		t.AppendRow(table.Row{"On-Demand", "disabled"})
 	}
+
+	t.Render()
+	return nil
+}
+
+// RenderMemory writes Activity Monitor-style system memory stats to w.
+func RenderMemory(w io.Writer, s *memstat.Stats) error {
+	t := table.NewWriter()
+	t.SetOutputMirror(w)
+	t.SetStyle(table.StyleLight)
+	t.SetTitle("Memory")
+	t.AppendHeader(table.Row{"Field", "Value"})
+
+	if s.Pressure != "" {
+		t.AppendRow(table.Row{"Memory Pressure", colorPressure(s.Pressure)})
+	}
+	t.AppendRow(table.Row{"Physical Memory", memstat.FormatBytes(s.Physical)})
+	t.AppendRow(table.Row{"Memory Used", fmt.Sprintf("%s (app %s, wired %s, compressed %s)",
+		memstat.FormatBytes(s.Used),
+		memstat.FormatBytes(s.App),
+		memstat.FormatBytes(s.Wired),
+		memstat.FormatBytes(s.Compressed),
+	)})
+	t.AppendRow(table.Row{"Cached Files", memstat.FormatBytes(s.Cached)})
+	t.AppendRow(table.Row{"Swap Used", memstat.FormatBytes(s.SwapUsed)})
 
 	t.Render()
 	return nil
@@ -148,4 +175,15 @@ func planConsumedCents(plan api.PlanUsage) float64 {
 
 func formatCents(cents float64) string {
 	return fmt.Sprintf("$%.2f", cents/100)
+}
+
+func colorPressure(p string) string {
+	switch p {
+	case "yellow":
+		return text.FgYellow.Sprint("yellow")
+	case "red":
+		return text.FgRed.Sprint("red")
+	default:
+		return text.FgGreen.Sprint("green")
+	}
 }
