@@ -52,6 +52,12 @@ func TestGetUsageSummary(t *testing.T) {
 	if summary.IndividualUsage.Plan.Breakdown.Bonus != 6121 {
 		t.Errorf("expected bonus 6121, got %d", summary.IndividualUsage.Plan.Breakdown.Bonus)
 	}
+	if summary.IndividualUsage.Plan.AutoPercentUsed != 25.87333333333333 {
+		t.Errorf("expected autoPercentUsed 25.87333333333333, got %v", summary.IndividualUsage.Plan.AutoPercentUsed)
+	}
+	if summary.IndividualUsage.Plan.APIPercentUsed != 100 {
+		t.Errorf("expected apiPercentUsed 100, got %v", summary.IndividualUsage.Plan.APIPercentUsed)
+	}
 }
 
 func TestGetUsageSummaryAuthError(t *testing.T) {

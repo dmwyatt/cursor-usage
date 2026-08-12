@@ -21,16 +21,17 @@ type IndividualUsage struct {
 	OnDemand OnDemandUsage `json:"onDemand"`
 }
 
-// PlanUsage tracks request-based usage against plan allowance.
+// PlanUsage tracks included credit usage against plan allowance.
+// Used, Limit, Remaining, and Breakdown values are in cents.
 type PlanUsage struct {
 	Enabled         bool          `json:"enabled"`
 	Used            int           `json:"used"`
 	Limit           int           `json:"limit"`
 	Remaining       int           `json:"remaining"`
 	Breakdown       PlanBreakdown `json:"breakdown"`
-	AutoPercentUsed int           `json:"autoPercentUsed"`
-	APIPercentUsed  int           `json:"apiPercentUsed"`
-	TotalPercentUsed int          `json:"totalPercentUsed"`
+	AutoPercentUsed  float64       `json:"autoPercentUsed"`
+	APIPercentUsed   float64       `json:"apiPercentUsed"`
+	TotalPercentUsed float64       `json:"totalPercentUsed"`
 }
 
 // PlanBreakdown shows included, bonus, and total request allowances.
@@ -40,7 +41,7 @@ type PlanBreakdown struct {
 	Total    int `json:"total"`
 }
 
-// OnDemandUsage tracks usage-based (pay-per-use) consumption.
+// OnDemandUsage tracks usage-based (pay-per-use) consumption in cents.
 // Limit and Remaining are nullable (nil means unlimited).
 type OnDemandUsage struct {
 	Enabled   bool `json:"enabled"`

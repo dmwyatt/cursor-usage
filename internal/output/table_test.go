@@ -40,14 +40,58 @@ func TestRenderSummary(t *testing.T) {
 
 	checks := []string{
 		"enterprise",
-		"2000",
-		"2309",
+		"$20.00",
+		"$23.09",
 		"Billing",
 	}
 	for _, check := range checks {
 		if !strings.Contains(output, check) {
 			t.Errorf("expected output to contain %q, got:\n%s", check, output)
 		}
+	}
+}
+
+func TestRenderSummaryUsesPercentWhenUsedIsCapped(t *testing.T) {
+	summary := &api.UsageSummary{
+		BillingCycleStart: "2026-08-06T02:46:21.000Z",
+		BillingCycleEnd:   "2026-09-06T02:46:21.000Z",
+		MembershipType:    "pro",
+		IndividualUsage: api.IndividualUsage{
+			Plan: api.PlanUsage{
+				Used:      2000,
+				Limit:     2000,
+				Remaining: 0,
+				Breakdown: api.PlanBreakdown{
+					Included: 2000,
+					Bonus:    5780,
+					Total:    7780,
+				},
+				AutoPercentUsed:  25.933333333333337,
+				APIPercentUsed:   0,
+				TotalPercentUsed: 22.55072463768116,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := RenderSummary(&buf, summary); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	checks := []string{
+		"$4.51 / $20.00 (22.6%)",
+		"25.9%",
+		"$57.80",
+		"$77.80",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("expected output to contain %q, got:\n%s", check, output)
+		}
+	}
+	if strings.Contains(output, "2000 / 2000") {
+		t.Errorf("should not print capped used/limit as request counts, got:\n%s", output)
 	}
 }
 

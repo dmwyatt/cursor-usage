@@ -25,19 +25,21 @@ func RenderSummary(w io.Writer, s *api.UsageSummary) error {
 	t.AppendSeparator()
 
 	plan := s.IndividualUsage.Plan
-	t.AppendRow(table.Row{"Plan Used / Limit", fmt.Sprintf("%d / %d (%d%%)", plan.Used, plan.Limit, plan.TotalPercentUsed)})
-	t.AppendRow(table.Row{"Plan Included", plan.Breakdown.Included})
-	t.AppendRow(table.Row{"Plan Bonus", plan.Breakdown.Bonus})
-	t.AppendRow(table.Row{"Plan Total Allowance", plan.Breakdown.Total})
+	t.AppendRow(table.Row{"Plan Used / Limit", fmt.Sprintf("%s / %s (%.1f%%)", formatCents(planConsumedCents(plan)), formatCents(float64(plan.Limit)), plan.TotalPercentUsed)})
+	t.AppendRow(table.Row{"Auto", fmt.Sprintf("%.1f%%", plan.AutoPercentUsed)})
+	t.AppendRow(table.Row{"API", fmt.Sprintf("%.1f%%", plan.APIPercentUsed)})
+	t.AppendRow(table.Row{"Plan Included", formatCents(float64(plan.Breakdown.Included))})
+	t.AppendRow(table.Row{"Plan Bonus", formatCents(float64(plan.Breakdown.Bonus))})
+	t.AppendRow(table.Row{"Plan Total Allowance", formatCents(float64(plan.Breakdown.Total))})
 	t.AppendSeparator()
 
 	od := s.IndividualUsage.OnDemand
 	if od.Enabled {
 		limitStr := "unlimited"
 		if od.Limit != nil {
-			limitStr = fmt.Sprintf("%d", *od.Limit)
+			limitStr = formatCents(float64(*od.Limit))
 		}
-		t.AppendRow(table.Row{"On-Demand Used / Limit", fmt.Sprintf("%d / %s", od.Used, limitStr)})
+		t.AppendRow(table.Row{"On-Demand Used / Limit", fmt.Sprintf("%s / %s", formatCents(float64(od.Used)), limitStr)})
 	} else {
 		t.AppendRow(table.Row{"On-Demand", "disabled"})
 	}
@@ -107,4 +109,17 @@ func boolStr(b bool) string {
 		return "yes"
 	}
 	return "no"
+}
+
+// Plan used/limit/breakdown values are cents. The API often reports used==limit
+// even when totalPercentUsed is well below 100, so consume from the percentage.
+func planConsumedCents(plan api.PlanUsage) float64 {
+	if plan.Limit > 0 {
+		return float64(plan.Limit) * plan.TotalPercentUsed / 100
+	}
+	return float64(plan.Used)
+}
+
+func formatCents(cents float64) string {
+	return fmt.Sprintf("$%.2f", cents/100)
 }
