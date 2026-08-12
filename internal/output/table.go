@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dmwyatt/cursor-usage/internal/api"
@@ -56,24 +57,45 @@ func RenderEvents(w io.Writer, resp *api.EventsResponse) error {
 	t.SetOutputMirror(w)
 	t.SetStyle(table.StyleLight)
 
-	t.AppendHeader(table.Row{
-		"Time", "Model", "Kind", "Input Tok", "Output Tok", "Cost (cents)", "Headless",
-	})
-
+	t.AppendHeader(eventTableHeader())
 	for _, e := range resp.UsageEventsDisplay {
-		t.AppendRow(table.Row{
-			formatMsTimestamp(e.Timestamp),
-			e.Model,
-			shortKind(e.Kind),
-			e.TokenUsage.InputTokens,
-			e.TokenUsage.OutputTokens,
-			fmt.Sprintf("%.2f", e.ChargedCents),
-			boolStr(e.IsHeadless),
-		})
+		t.AppendRow(eventRow(e))
 	}
 
 	t.Render()
 	return nil
+}
+
+// RenderRecentEvents writes a compact table of the most recent usage events.
+func RenderRecentEvents(w io.Writer, events []api.UsageEvent) error {
+	t := table.NewWriter()
+	t.SetOutputMirror(w)
+	t.SetStyle(table.StyleLight)
+	t.SetTitle("Recent Events")
+	t.AppendHeader(eventTableHeader())
+	for _, e := range events {
+		t.AppendRow(eventRow(e))
+	}
+	t.Render()
+	return nil
+}
+
+func eventTableHeader() table.Row {
+	return table.Row{
+		"Time", "Model", "Kind", "Input Tok", "Output Tok", "Cost (cents)", "Headless",
+	}
+}
+
+func eventRow(e api.UsageEvent) table.Row {
+	return table.Row{
+		formatMsTimestamp(e.Timestamp),
+		e.Model,
+		shortKind(e.Kind),
+		e.TokenUsage.InputTokens,
+		e.TokenUsage.OutputTokens,
+		fmt.Sprintf("%.2f", e.ChargedCents),
+		boolStr(e.IsHeadless),
+	}
 }
 
 func formatTimestamp(iso string) string {
@@ -97,9 +119,13 @@ func shortKind(kind string) string {
 	switch kind {
 	case "USAGE_EVENT_KIND_USAGE_BASED":
 		return "usage-based"
-	case "USAGE_EVENT_KIND_INCLUDED_IN_BUSINESS":
+	case "USAGE_EVENT_KIND_INCLUDED_IN_BUSINESS", "USAGE_EVENT_KIND_INCLUDED_IN_PRO":
 		return "included"
 	default:
+		const prefix = "USAGE_EVENT_KIND_"
+		if strings.HasPrefix(kind, prefix) {
+			return strings.ToLower(strings.ReplaceAll(kind[len(prefix):], "_", "-"))
+		}
 		return kind
 	}
 }

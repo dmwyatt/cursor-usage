@@ -143,3 +143,54 @@ func TestRenderEvents(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderRecentEvents(t *testing.T) {
+	events := []api.UsageEvent{
+		{
+			Timestamp:    "1786532478780",
+			Model:        "default",
+			Kind:         "USAGE_EVENT_KIND_INCLUDED_IN_PRO",
+			ChargedCents: 6.87,
+			TokenUsage: api.TokenUsage{
+				InputTokens:  10992,
+				OutputTokens: 867,
+			},
+		},
+		{
+			Timestamp:    "1786532122766",
+			Model:        "composer-2.5-fast",
+			Kind:         "USAGE_EVENT_KIND_USAGE_BASED",
+			ChargedCents: 3.88,
+			TokenUsage: api.TokenUsage{
+				InputTokens:  1309,
+				OutputTokens: 947,
+			},
+			IsHeadless: true,
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := RenderRecentEvents(&buf, events); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	checks := []string{
+		"Recent Events",
+		"default",
+		"included",
+		"composer-2.5-fast",
+		"10992",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("expected output to contain %q, got:\n%s", check, output)
+		}
+	}
+	if strings.Contains(output, "Total events:") {
+		t.Errorf("recent events table should not print total count, got:\n%s", output)
+	}
+	if strings.Contains(output, "USAGE_EVENT_KIND_INCLUDED_IN_PRO") {
+		t.Errorf("expected short kind, got:\n%s", output)
+	}
+}
