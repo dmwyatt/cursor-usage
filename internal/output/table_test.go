@@ -65,7 +65,7 @@ func TestRenderSummaryTokens(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	got := buf.String()
-	for _, check := range []string{"Total Tokens", "148.2M", "7.2M", "771.0K", "140.0M", "cache read"} {
+	for _, check := range []string{"Tokens", "148.2M", "7.2M", "771.0K", "140.0M", "Cache R / W", "In / Out"} {
 		if !strings.Contains(got, check) {
 			t.Errorf("expected output to contain %q, got:\n%s", check, got)
 		}
@@ -102,7 +102,7 @@ func TestRenderSummaryUsesPercentWhenUsedIsCapped(t *testing.T) {
 	output := buf.String()
 	checks := []string{
 		"$4.51 / $20.00 (22.6%)",
-		"25.9%",
+		"25.9% / 0.0%",
 		"$57.80",
 		"$77.80",
 	}
@@ -201,7 +201,7 @@ func TestRenderRecentEvents(t *testing.T) {
 		"default",
 		"included",
 		"composer-2.5-fast",
-		"10992",
+		"6.87¢",
 	}
 	for _, check := range checks {
 		if !strings.Contains(output, check) {
@@ -213,6 +213,9 @@ func TestRenderRecentEvents(t *testing.T) {
 	}
 	if strings.Contains(output, "USAGE_EVENT_KIND_INCLUDED_IN_PRO") {
 		t.Errorf("expected short kind, got:\n%s", output)
+	}
+	if strings.Contains(output, "INPUT TOK") || strings.Contains(output, "10992") {
+		t.Errorf("summary recent events should omit token columns, got:\n%s", output)
 	}
 }
 
@@ -235,16 +238,12 @@ func TestRenderMemory(t *testing.T) {
 
 	output := buf.String()
 	checks := []string{
-		"Physical Memory",
+		"Used / Phys",
 		"8.00 GB",
-		"Memory Used",
-		"app",
-		"wired",
-		"compressed",
-		"Cached Files",
-		"Swap Used",
+		"App/Wire/Compr",
+		"Cached / Swap",
 		"709.1 MB",
-		"Memory Pressure",
+		"Pressure",
 		"green",
 	}
 	for _, check := range checks {

@@ -41,12 +41,3 @@ func FormatTokenCount(n int) string {
 	}
 }
 
-func formatTokenTotals(t TokenTotals) string {
-	return fmt.Sprintf("%s (in %s, out %s, cache read %s, cache write %s)",
-		FormatTokenCount(t.Total),
-		FormatTokenCount(t.Input),
-		FormatTokenCount(t.Output),
-		FormatTokenCount(t.CacheRead),
-		FormatTokenCount(t.CacheWrite),
-	)
-}

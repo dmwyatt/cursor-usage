@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/dmwyatt/cursor-usage/internal/memstat"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
+	"golang.org/x/term"
 )
 
 // RenderSummary writes a human-readable usage summary table to w.
@@ -18,25 +20,26 @@ func RenderSummary(w io.Writer, s *api.UsageSummary, tokens *TokenTotals) error 
 	t := table.NewWriter()
 	t.SetOutputMirror(w)
 	t.SetStyle(table.StyleLight)
+	fitTable(t)
 
 	t.SetTitle("Cursor Usage Summary")
-	t.AppendHeader(table.Row{"Field", "Value"})
 
 	t.AppendRow(table.Row{"Membership", s.MembershipType})
 	t.AppendRow(table.Row{"Billing Start", formatTimestamp(s.BillingCycleStart)})
 	t.AppendRow(table.Row{"Billing End", formatTimestamp(s.BillingCycleEnd)})
 	if tokens != nil {
-		t.AppendRow(table.Row{"Total Tokens", formatTokenTotals(*tokens)})
+		t.AppendRow(table.Row{"Tokens", FormatTokenCount(tokens.Total)})
+		t.AppendRow(table.Row{"In / Out", fmt.Sprintf("%s / %s", FormatTokenCount(tokens.Input), FormatTokenCount(tokens.Output))})
+		t.AppendRow(table.Row{"Cache R / W", fmt.Sprintf("%s / %s", FormatTokenCount(tokens.CacheRead), FormatTokenCount(tokens.CacheWrite))})
 	}
 	t.AppendSeparator()
 
 	plan := s.IndividualUsage.Plan
-	t.AppendRow(table.Row{"Plan Used / Limit", fmt.Sprintf("%s / %s (%.1f%%)", formatCents(planConsumedCents(plan)), formatCents(float64(plan.Limit)), plan.TotalPercentUsed)})
-	t.AppendRow(table.Row{"Auto", fmt.Sprintf("%.1f%%", plan.AutoPercentUsed)})
-	t.AppendRow(table.Row{"API", fmt.Sprintf("%.1f%%", plan.APIPercentUsed)})
-	t.AppendRow(table.Row{"Plan Included", formatCents(float64(plan.Breakdown.Included))})
-	t.AppendRow(table.Row{"Plan Bonus", formatCents(float64(plan.Breakdown.Bonus))})
-	t.AppendRow(table.Row{"Plan Total Allowance", formatCents(float64(plan.Breakdown.Total))})
+	t.AppendRow(table.Row{"Plan Used", fmt.Sprintf("%s / %s (%.1f%%)", formatCents(planConsumedCents(plan)), formatCents(float64(plan.Limit)), plan.TotalPercentUsed)})
+	t.AppendRow(table.Row{"Auto / API", fmt.Sprintf("%.1f%% / %.1f%%", plan.AutoPercentUsed, plan.APIPercentUsed)})
+	t.AppendRow(table.Row{"Included", formatCents(float64(plan.Breakdown.Included))})
+	t.AppendRow(table.Row{"Bonus", formatCents(float64(plan.Breakdown.Bonus))})
+	t.AppendRow(table.Row{"Allowance", formatCents(float64(plan.Breakdown.Total))})
 	t.AppendSeparator()
 
 	od := s.IndividualUsage.OnDemand
@@ -45,7 +48,7 @@ func RenderSummary(w io.Writer, s *api.UsageSummary, tokens *TokenTotals) error 
 		if od.Limit != nil {
 			limitStr = formatCents(float64(*od.Limit))
 		}
-		t.AppendRow(table.Row{"On-Demand Used / Limit", fmt.Sprintf("%s / %s", formatCents(float64(od.Used)), limitStr)})
+		t.AppendRow(table.Row{"On-Demand", fmt.Sprintf("%s / %s", formatCents(float64(od.Used)), limitStr)})
 	} else {
 		t.AppendRow(table.Row{"On-Demand", "disabled"})
 	}
@@ -59,21 +62,19 @@ func RenderMemory(w io.Writer, s *memstat.Stats) error {
 	t := table.NewWriter()
 	t.SetOutputMirror(w)
 	t.SetStyle(table.StyleLight)
+	fitTable(t)
 	t.SetTitle("Memory")
-	t.AppendHeader(table.Row{"Field", "Value"})
 
 	if s.Pressure != "" {
-		t.AppendRow(table.Row{"Memory Pressure", colorPressure(s.Pressure)})
+		t.AppendRow(table.Row{"Pressure", colorPressure(s.Pressure)})
 	}
-	t.AppendRow(table.Row{"Physical Memory", memstat.FormatBytes(s.Physical)})
-	t.AppendRow(table.Row{"Memory Used", fmt.Sprintf("%s (app %s, wired %s, compressed %s)",
-		memstat.FormatBytes(s.Used),
+	t.AppendRow(table.Row{"Used / Phys", fmt.Sprintf("%s / %s", memstat.FormatBytes(s.Used), memstat.FormatBytes(s.Physical))})
+	t.AppendRow(table.Row{"App/Wire/Compr", fmt.Sprintf("%s / %s / %s",
 		memstat.FormatBytes(s.App),
 		memstat.FormatBytes(s.Wired),
 		memstat.FormatBytes(s.Compressed),
 	)})
-	t.AppendRow(table.Row{"Cached Files", memstat.FormatBytes(s.Cached)})
-	t.AppendRow(table.Row{"Swap Used", memstat.FormatBytes(s.SwapUsed)})
+	t.AppendRow(table.Row{"Cached / Swap", fmt.Sprintf("%s / %s", memstat.FormatBytes(s.Cached), memstat.FormatBytes(s.SwapUsed))})
 
 	t.Render()
 	return nil
@@ -86,6 +87,7 @@ func RenderEvents(w io.Writer, resp *api.EventsResponse) error {
 	t := table.NewWriter()
 	t.SetOutputMirror(w)
 	t.SetStyle(table.StyleLight)
+	fitTable(t)
 
 	t.AppendHeader(eventTableHeader())
 	for _, e := range resp.UsageEventsDisplay {
@@ -101,10 +103,15 @@ func RenderRecentEvents(w io.Writer, events []api.UsageEvent) error {
 	t := table.NewWriter()
 	t.SetOutputMirror(w)
 	t.SetStyle(table.StyleLight)
+	fitTable(t)
 	t.SetTitle("Recent Events")
-	t.AppendHeader(eventTableHeader())
 	for _, e := range events {
-		t.AppendRow(eventRow(e))
+		t.AppendRow(table.Row{
+			formatCompactMsTimestamp(e.Timestamp),
+			e.Model,
+			shortKind(e.Kind),
+			fmt.Sprintf("%.2f¢", e.ChargedCents),
+		})
 	}
 	t.Render()
 	return nil
@@ -146,6 +153,15 @@ func formatMsTimestamp(ms string) string {
 	return t.Local().Format("2006-01-02 15:04")
 }
 
+func formatCompactMsTimestamp(ms string) string {
+	n, err := strconv.ParseInt(ms, 10, 64)
+	if err != nil {
+		return ms
+	}
+	t := time.UnixMilli(n)
+	return t.Local().Format("01-02 15:04")
+}
+
 func shortKind(kind string) string {
 	switch kind {
 	case "USAGE_EVENT_KIND_USAGE_BASED":
@@ -182,6 +198,11 @@ func formatCents(cents float64) string {
 }
 
 func colorPressure(p string) string {
+	// Skip ANSI when stdout is not a terminal so watch/pipes do not pad
+	// columns around invisible escape sequences on clients that mishandle them.
+	if !term.IsTerminal(int(os.Stdout.Fd())) {
+		return p
+	}
 	switch p {
 	case "yellow":
 		return text.FgYellow.Sprint("yellow")
